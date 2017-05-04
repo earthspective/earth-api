@@ -39,9 +39,9 @@ app.post('/pins/', function (req, res) {
         result.PinCollection.Pins[0].Pin.forEach(function (e) {
             //console.log(e['$'].id);
             d = e['$'];
-            var data = [d.id, d.year, d.x, d.y, d.title, d.desc];
+            var data = [d.id, d.year, d.x, d.y, d.title, d.desc, d.tags];
             var connection = mysql.createConnection(mysql_config);
-            var query = connection.query('replace into Pins (PinID, EventDate, Latitude, Longitude, PinTitle, PinDesc) values (?, ?, ?, ?, ?, ?)', data, function (err, result) {
+            var query = connection.query('replace into Pins (PinID, EventDate, Latitude, Longitude, PinTitle, PinDesc, Tags) values (?, ?, ?, ?, ?, ?, ?)', data, function (err, result) {
                 if (err) {
                     console.err(err);
                     didFalse = true;
@@ -72,13 +72,18 @@ app.get('/pins/', function (req, res) {
                     }
                     var xml = builder.begin().ele('PinCollection', { PackID: 1 }).ele('Pins');
                     for (var i = 0; i < rows.length; i++) {
+                        var tags = rows[i]['Tags'];
+                        if (!tags) {
+                            tags = "";
+                        }
                         var item = xml.ele('Pin', {
                             'id': rows[i]['PinID'],
                             'year': rows[i]['EventDate'],
                             'x': rows[i]['Latitude'],
                             'y': rows[i]['Longitude'],
                             'title': rows[i]['PinTitle'],
-                            'desc': rows[i]['PinDesc']
+                            'desc': rows[i]['PinDesc'],
+                            'tags': tags
                         });
                         /*do  {
                             item.ele('tag', rows[i]['TagName']);
