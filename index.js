@@ -1,6 +1,7 @@
 var config = require("./config.json");
 var util = require('util');
-var app = require('express')();
+var express = require('express');
+var app = express();
 var mysql = require('mysql');
 var builder = require('xmlbuilder');
 var multer = require('multer');
@@ -8,6 +9,9 @@ var upload = multer();
 var xml2js = require('xml2js');
 
 var parser = new xml2js.Parser();
+
+app.use('/images', express.static('images'));
+
 
 var mysql_config = {
     host: config.database.host,
