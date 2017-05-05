@@ -12,7 +12,7 @@ var parser = new xml2js.Parser();
 
 app.use('/images', express.static('images'));
 
-
+//Pull MySQL configuration from the config.json file
 var mysql_config = {
     host: config.database.host,
     user: config.database.username,
@@ -22,10 +22,7 @@ var mysql_config = {
     dateStrings: 'date'
 };
 
-app.get('/', function (req, res) {
-    res.send('Hello World');
-});
-
+//Setup server, listen on default port
 var server = app.listen(config.webserver.port, function () {
     var host = server.address().address;
     var port = server.address().port;
@@ -33,15 +30,17 @@ var server = app.listen(config.webserver.port, function () {
     console.log('listening on http://%s:%s', host, port);
 
 });
-app.use(upload.array()); // for parsing multipart/form-data
+//Setup parsing for the multipart/form-data submission to POST
+app.use(upload.array());
 
+//POST option to /pin/, this inputs the XML data in the same format that
+//the get returns, and updates the database with the new information.
 app.post('/pins/', function (req, res) {
-    //res.send("hello world");
     var didFail = true;
     parser.parseString(req.body['testData'], function (err, result) {
         didFail = false;
+        //For each pin in the PinCollection set, query the database for an update
         result.PinCollection.Pins[0].Pin.forEach(function (e) {
-            //console.log(e['$'].id);
             d = e['$'];
             var data = [d.id, d.year, d.x, d.y, d.title, d.desc, d.tags];
             var connection = mysql.createConnection(mysql_config);
@@ -68,12 +67,13 @@ app.get('/pins/', function (req, res) {
                 console.log(err);
                 res.send(503, "Error");
             } else {
-                //var sql = 'select * from Pins P inner join Pins_Tags P_T on P_T.PinID = P.PinID inner join Tags T on T.TagID = P_T.TagID order by P.PinID asc';
                 var sql = 'select * from Pins';
                 connection.query(sql, function (err, rows, fields) {
                     if (err) {
                         console.log(err);
                     }
+                    //Begin building the XML in the format Unity requires, building dynamically from the
+                    //SQL data that was returned, the date format is defined in the mysql config above.
                     var xml = builder.begin().ele('PinCollection', { PackID: 1 }).ele('Pins');
                     for (var i = 0; i < rows.length; i++) {
                         var tags = rows[i]['Tags'];
@@ -89,18 +89,15 @@ app.get('/pins/', function (req, res) {
                             'desc': rows[i]['PinDesc'],
                             'tags': tags
                         });
-                        /*do  {
-                            item.ele('tag', rows[i]['TagName']);
-                            i += 1;
-                        } while (i < rows.length && rows[i]['PinID'] == rows[i-1]['PinID']);*/
                     }
+                    //End the XML and send it with formatting so it can be easily read.
                     xml.end({ pretty: true });
 
+                    //Set the HTTP header to text/xml so Unity reads it as the correct type
                     res.set('Content-Type', 'text/xml');
                     res.send(xml.doc().end());
                     connection.end();
                 });
-                //connection.end();
             }
         });
     } catch (e) {
