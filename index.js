@@ -40,10 +40,10 @@ app.post('/pins/', function (req, res) {
     parser.parseString(req.body['testData'], function (err, result) {
         didFail = false;
         //For each pin in the PinCollection set, query the database for an update
-        var packid = result.PinCollection['$'].PackID;
-        if (!packid) {
-            packid = 1;
-        }
+        var packid = 1;
+        try {
+            packid = result.PinCollection['$'].PackID;
+        } catch (e) {}
         result.PinCollection.Pins[0].Pin.forEach(function (e) {
             d = e['$'];
             var data = [d.id, d.year, d.x, d.y, d.title, d.desc, d.tags, packid];
