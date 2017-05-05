@@ -6,5 +6,6 @@ CREATE TABLE `Pins` (
   `Longitude` decimal(11,8) DEFAULT NULL,
   `EventDate` datetime DEFAULT NULL,
   `Tags` varchar(300) DEFAULT NULL,
+  `EventPackID` int(11) DEFAULT '1',
   PRIMARY KEY (`PinID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
