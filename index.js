@@ -40,11 +40,15 @@ app.post('/pins/', function (req, res) {
     parser.parseString(req.body['testData'], function (err, result) {
         didFail = false;
         //For each pin in the PinCollection set, query the database for an update
+        var packid = result.PinCollection['$'].PackID;
+        if (!packid) {
+            packid = 1;
+        }
         result.PinCollection.Pins[0].Pin.forEach(function (e) {
             d = e['$'];
-            var data = [d.id, d.year, d.x, d.y, d.title, d.desc, d.tags];
+            var data = [d.id, d.year, d.x, d.y, d.title, d.desc, d.tags, packid];
             var connection = mysql.createConnection(mysql_config);
-            var query = connection.query('replace into Pins (PinID, EventDate, Latitude, Longitude, PinTitle, PinDesc, Tags) values (?, ?, ?, ?, ?, ?, ?)', data, function (err, result) {
+            var query = connection.query('replace into Pins (PinID, EventDate, Latitude, Longitude, PinTitle, PinDesc, Tags, EventPackID) values (?, ?, ?, ?, ?, ?, ?, ?)', data, function (err, result) {
                 if (err) {
                     console.err(err);
                     didFalse = true;
@@ -59,48 +63,59 @@ app.post('/pins/', function (req, res) {
         res.send("Good");
     }
 });
-app.get('/pins/', function (req, res) {
+app.get('/pins/:packid', function (req, res) {
     try {
-        var connection = mysql.createConnection(mysql_config);
-        connection.connect(function (err) {
-            if (err) {
-                console.log(err);
-                res.send(503, "Error");
-            } else {
-                var sql = 'select * from Pins';
-                connection.query(sql, function (err, rows, fields) {
-                    if (err) {
-                        console.log(err);
-                    }
-                    //Begin building the XML in the format Unity requires, building dynamically from the
-                    //SQL data that was returned, the date format is defined in the mysql config above.
-                    var xml = builder.begin().ele('PinCollection', { PackID: 1 }).ele('Pins');
-                    for (var i = 0; i < rows.length; i++) {
-                        var tags = rows[i]['Tags'];
-                        if (!tags) {
-                            tags = "";
-                        }
-                        var item = xml.ele('Pin', {
-                            'id': rows[i]['PinID'],
-                            'year': rows[i]['EventDate'],
-                            'x': rows[i]['Latitude'],
-                            'y': rows[i]['Longitude'],
-                            'title': rows[i]['PinTitle'],
-                            'desc': rows[i]['PinDesc'],
-                            'tags': tags
-                        });
-                    }
-                    //End the XML and send it with formatting so it can be easily read.
-                    xml.end({ pretty: true });
-
-                    //Set the HTTP header to text/xml so Unity reads it as the correct type
-                    res.set('Content-Type', 'text/xml');
-                    res.send(xml.doc().end());
-                    connection.end();
-                });
-            }
-        });
+        sendPins(req, res, req.params.packid);
     } catch (e) {
         res.send(503, "Error");
     }
 });
+app.get('/pins/', function (req, res) {
+    try {
+        sendPins(req, res, 1);
+    } catch (e) {
+        res.send(503, "Error");
+    }
+});
+
+function sendPins(req, res, packid) {
+    var connection = mysql.createConnection(mysql_config);
+    connection.connect(function (err) {
+        if (err) {
+            console.log(err);
+            res.send(503, "Error");
+        } else {
+            var sql = 'select * from Pins where EventPackID = ?';
+            connection.query(sql, [ packid ], function (err, rows, fields) {
+                if (err) {
+                    console.log(err);
+                }
+                //Begin building the XML in the format Unity requires, building dynamically from the
+                //SQL data that was returned, the date format is defined in the mysql config above.
+                var xml = builder.begin().ele('PinCollection', { PackID: packid }).ele('Pins');
+                for (var i = 0; i < rows.length; i++) {
+                    var tags = rows[i]['Tags'];
+                    if (!tags) {
+                        tags = "";
+                    }
+                    var item = xml.ele('Pin', {
+                        'id': rows[i]['PinID'],
+                        'year': rows[i]['EventDate'],
+                        'x': rows[i]['Latitude'],
+                        'y': rows[i]['Longitude'],
+                        'title': rows[i]['PinTitle'],
+                        'desc': rows[i]['PinDesc'],
+                        'tags': tags
+                    });
+                }
+                //End the XML and send it with formatting so it can be easily read.
+                xml.end({ pretty: true });
+
+                //Set the HTTP header to text/xml so Unity reads it as the correct type
+                res.set('Content-Type', 'text/xml');
+                res.send(xml.doc().end());
+                connection.end();
+            });
+        }
+    });
+}
